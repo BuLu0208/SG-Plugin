@@ -15,32 +15,34 @@ jobs:
           export THEOS=/opt/theos
           sudo rm -rf $THEOS
           sudo git clone --recursive https://github.com/theos/theos.git $THEOS
-          sudo chmod -R 777 $THEOS
           
       - name: Setup Toolchain
         run: |
           export THEOS=/opt/theos
           sudo mkdir -p $THEOS/toolchain/linux/iphone
-          # 下载官方维护的 Linux x86_64 工具链 (Legacy 路径)
-          curl -L https://github.com/theos/toolchain/raw/master/linux/iphone/clang.tar.gz -o clang.tar.gz
-          # 检查下载的文件是否有效 (如果太小说明是404)
-          FILESIZE=$(stat -c%s "clang.tar.gz")
-          if [ $FILESIZE -lt 1000 ]; then echo "Error: Download failed, file too small."; exit 1; fi
-          sudo tar -xzvf clang.tar.gz -C $THEOS/toolchain/linux/iphone
-          rm clang.tar.gz
+          # 使用 Diatrus 维护的可靠工具链源
+          curl -LO https://github.com/Diatrus/Action-Theos/raw/master/toolchain.tar.xz
+          sudo tar -xvf toolchain.tar.xz -C $THEOS/toolchain
+          # 整理路径
+          sudo mv $THEOS/toolchain/linux/iphone $THEOS/toolchain/temp_iphone || true
+          sudo rm -rf $THEOS/toolchain/linux
+          sudo mkdir -p $THEOS/toolchain/linux
+          sudo mv $THEOS/toolchain/temp_iphone $THEOS/toolchain/linux/iphone || true
+          rm toolchain.tar.xz
 
       - name: Setup SDK
         run: |
           export THEOS=/opt/theos
           sudo rm -rf $THEOS/sdks
+          # 下载专为 Theos 优化的精简版 SDK
           sudo git clone --depth 1 https://github.com/theos/sdks.git $THEOS/sdks
           sudo chmod -R 777 $THEOS
 
       - name: Build Dylib
         run: |
           export THEOS=/opt/theos
-          # 增加调试信息，看看路径对不对
-          ls -l $THEOS/toolchain/linux/iphone/bin/clang || echo "Clang not found"
+          # 显式指定编译器路径，防止 make 走丢
+          export PATH=$THEOS/toolchain/linux/iphone/bin:$PATH
           make package FINALPACKAGE=1
           
       - name: Upload Artifact
