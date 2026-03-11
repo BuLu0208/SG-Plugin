@@ -1,52 +1,49 @@
 name: Build SwiftGramSaver
-on: [push, workflow_dispatch]
+
+on:
+  push:
+    branches: [ main, master ] # 兼容不同分支名
+  workflow_dispatch: # 允许手动触发
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: macos-latest
+    
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Theos
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y bash curl git perl make build-essential xz-utils
-          export THEOS=/opt/theos
-          sudo rm -rf $THEOS
-          sudo git clone --recursive https://github.com/theos/theos.git $THEOS
-          
-      - name: Setup Toolchain
-        run: |
-          export THEOS=/opt/theos
-          sudo mkdir -p $THEOS/toolchain/linux/iphone
-          # 使用 Diatrus 维护的可靠工具链源
-          curl -LO https://github.com/Diatrus/Action-Theos/raw/master/toolchain.tar.xz
-          sudo tar -xvf toolchain.tar.xz -C $THEOS/toolchain
-          # 整理路径
-          sudo mv $THEOS/toolchain/linux/iphone $THEOS/toolchain/temp_iphone || true
-          sudo rm -rf $THEOS/toolchain/linux
-          sudo mkdir -p $THEOS/toolchain/linux
-          sudo mv $THEOS/toolchain/temp_iphone $THEOS/toolchain/linux/iphone || true
-          rm toolchain.tar.xz
-
-      - name: Setup SDK
-        run: |
-          export THEOS=/opt/theos
-          sudo rm -rf $THEOS/sdks
-          # 下载专为 Theos 优化的精简版 SDK
-          sudo git clone --depth 1 https://github.com/theos/sdks.git $THEOS/sdks
-          sudo chmod -R 777 $THEOS
-
-      - name: Build Dylib
-        run: |
-          export THEOS=/opt/theos
-          # 显式指定编译器路径，防止 make 走丢
-          export PATH=$THEOS/toolchain/linux/iphone/bin:$PATH
-          make package FINALPACKAGE=1
-          
-      - name: Upload Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: SwiftGramSaver-Dylib
-          path: .obj/*.dylib
+    - name: Checkout
+      uses: actions/checkout@v4
+      with:
+        submodules: 'recursive'
+    
+    - name: Install dependencies
+      run: |
+        brew install ldid
+        brew install make
+    
+    - name: Setup Theos
+      run: |
+        # 将 Theos 克隆到当前工作目录
+        git clone --recursive https://github.com/theos/theos.git theos
+        # 使用你之前的 SDK 安装逻辑，这种方式获取的 SDK 最全
+        curl -LO https://github.com/theos/sdks/archive/master.zip
+        unzip master.zip
+        mkdir -p theos/sdks
+        mv sdks-master/* theos/sdks/
+        rm -rf sdks-master master.zip
+        
+    - name: Build project
+      env:
+        # 设置 Theos 环境变量指向当前目录下的 theos 文件夹
+        THEOS: ${{ github.workspace }}/theos
+      run: |
+        export PATH=$THEOS/bin:$PATH
+        # 强制指定架构为 arm64 和 arm64e，确保兼容你的 iPhone
+        make package FINALPACKAGE=1 ARCHS="arm64 arm64e"
+        
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: SwiftGramSaver-Package
+        path: |
+          .theos/obj/*.dylib
+          packages/*.deb
