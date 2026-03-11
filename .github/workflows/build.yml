@@ -8,36 +8,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Theos
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y bash curl git perl make build-essential xz-utils
-          export THEOS=/opt/theos
-          sudo rm -rf $THEOS
-          sudo git clone --recursive https://github.com/theos/theos.git $THEOS
-          
-      - name: Setup Toolchain
-        run: |
-          export THEOS=/opt/theos
-          sudo mkdir -p $THEOS/toolchain
-          # 下载适用于 Ubuntu (x86_64) 的 iOS 交叉编译工具链
-          curl -LO https://github.com/sirus2001/theos-toolchain/releases/download/v1.1/toolchain-linux-x86_64.tar.xz
-          sudo tar -xvf toolchain-linux-x86_64.tar.xz -C $THEOS/toolchain
-          # 确保路径匹配 Theos 的默认搜索路径
-          sudo mv $THEOS/toolchain/linux $THEOS/toolchain/iphone || true
-          rm toolchain-linux-x86_64.tar.xz
-
-      - name: Setup SDK
-        run: |
-          export THEOS=/opt/theos
-          sudo rm -rf $THEOS/sdks
-          sudo git clone --depth 1 https://github.com/theos/sdks.git $THEOS/sdks
-          sudo chmod -R 777 $THEOS
+      - name: Setup Theos and Toolchain
+        # 使用专门的 action 自动配置 Theos、工具链和 SDK
+        uses: kabiroberai/setup-theos-action@v1
 
       - name: Build Dylib
         run: |
-          export THEOS=/opt/theos
-          # 强制指定架构和生成
+          # 编译插件
           make package FINALPACKAGE=1
           
       - name: Upload Artifact
