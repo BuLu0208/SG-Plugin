@@ -11,24 +11,32 @@ jobs:
       - name: Setup Theos
         run: |
           sudo apt-get update
-          sudo apt-get install -y bash curl git perl make build-essential
+          sudo apt-get install -y bash curl git perl make build-essential xz-utils
           export THEOS=/opt/theos
-          # 如果目录已存在则先删除，确保干净安装
           sudo rm -rf $THEOS
           sudo git clone --recursive https://github.com/theos/theos.git $THEOS
-          sudo chmod -R 777 $THEOS
           
+      - name: Setup Toolchain
+        run: |
+          # 下载专为 Linux 准备的 iOS 工具链
+          export THEOS=/opt/theos
+          sudo mkdir -p $THEOS/toolchain
+          curl -LO https://github.com/theos/toolchain/releases/download/linux-arm64/toolchain-linux-arm64.tar.xz
+          sudo tar -xvf toolchain-linux-arm64.tar.xz -C $THEOS/toolchain
+          rm toolchain-linux-arm64.tar.xz
+
       - name: Setup SDK
         run: |
           export THEOS=/opt/theos
-          # 核心修复：强制删除已存在的 sdks 文件夹再克隆
           sudo rm -rf $THEOS/sdks
-          sudo git clone https://github.com/theos/sdks.git $THEOS/sdks
-          sudo chmod -R 777 $THEOS/sdks
+          # 拉取精简版 SDK，只需 iOS 15 左右的即可
+          sudo git clone --depth 1 https://github.com/theos/sdks.git $THEOS/sdks
+          sudo chmod -R 777 $THEOS
 
       - name: Build Dylib
         run: |
           export THEOS=/opt/theos
+          # 明确指定工具链路径，防止找不到 clang
           make package FINALPACKAGE=1
           
       - name: Upload Artifact
