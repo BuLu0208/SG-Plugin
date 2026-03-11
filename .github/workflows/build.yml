@@ -2,8 +2,8 @@ name: Build SwiftGramSaver
 
 on:
   push:
-    branches: [ main, master ] # 兼容不同分支名
-  workflow_dispatch: # 允许手动触发
+    branches: [ main, master ]
+  workflow_dispatch:
 
 jobs:
   build:
@@ -18,13 +18,10 @@ jobs:
     - name: Install dependencies
       run: |
         brew install ldid
-        brew install make
     
     - name: Setup Theos
       run: |
-        # 将 Theos 克隆到当前工作目录
         git clone --recursive https://github.com/theos/theos.git theos
-        # 使用你之前的 SDK 安装逻辑，这种方式获取的 SDK 最全
         curl -LO https://github.com/theos/sdks/archive/master.zip
         unzip master.zip
         mkdir -p theos/sdks
@@ -33,17 +30,15 @@ jobs:
         
     - name: Build project
       env:
-        # 设置 Theos 环境变量指向当前目录下的 theos 文件夹
         THEOS: ${{ github.workspace }}/theos
       run: |
         export PATH=$THEOS/bin:$PATH
-        # 强制指定架构为 arm64 和 arm64e，确保兼容你的 iPhone
-        make package FINALPACKAGE=1 ARCHS="arm64 arm64e"
+        # 使用 all 代替 package，避免因缺少 control 文件报错
+        make all FINALPACKAGE=1 ARCHS="arm64 arm64e"
         
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: SwiftGramSaver-Package
-        path: |
-          .theos/obj/*.dylib
-          packages/*.deb
+        name: SwiftGramSaver-Dylib
+        # 精确指定编译出的成品路径
+        path: .theos/obj/SwiftGramSaver.dylib
