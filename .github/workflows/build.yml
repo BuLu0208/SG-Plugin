@@ -6,31 +6,33 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4 # 升级到 v4
+        uses: actions/checkout@v4
 
       - name: Setup Theos
         run: |
           sudo apt-get update
           sudo apt-get install -y bash curl git perl make build-essential
           export THEOS=/opt/theos
+          # 如果目录已存在则先删除，确保干净安装
+          sudo rm -rf $THEOS
           sudo git clone --recursive https://github.com/theos/theos.git $THEOS
-          # 给予目录权限，防止编译时报错
           sudo chmod -R 777 $THEOS
           
       - name: Setup SDK
         run: |
-          # 自动拉取 SDK 库
-          sudo git clone https://github.com/theos/sdks.git /opt/theos/sdks
-          sudo chmod -R 777 /opt/theos/sdks
+          export THEOS=/opt/theos
+          # 核心修复：强制删除已存在的 sdks 文件夹再克隆
+          sudo rm -rf $THEOS/sdks
+          sudo git clone https://github.com/theos/sdks.git $THEOS/sdks
+          sudo chmod -R 777 $THEOS/sdks
 
       - name: Build Dylib
         run: |
           export THEOS=/opt/theos
-          # 使用 FINALPACKAGE=1 减小文件体积并优化性能
           make package FINALPACKAGE=1
           
       - name: Upload Artifact
-        uses: actions/upload-artifact@v4 # 核心修复：升级到 v4
+        uses: actions/upload-artifact@v4
         with:
           name: SwiftGramSaver-Dylib
           path: .obj/*.dylib
