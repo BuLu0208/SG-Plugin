@@ -18,25 +18,26 @@ jobs:
           
       - name: Setup Toolchain
         run: |
-          # 下载专为 Linux 准备的 iOS 工具链
           export THEOS=/opt/theos
           sudo mkdir -p $THEOS/toolchain
-          curl -LO https://github.com/theos/toolchain/releases/download/linux-arm64/toolchain-linux-arm64.tar.xz
-          sudo tar -xvf toolchain-linux-arm64.tar.xz -C $THEOS/toolchain
-          rm toolchain-linux-arm64.tar.xz
+          # 下载适用于 Ubuntu (x86_64) 的 iOS 交叉编译工具链
+          curl -LO https://github.com/sirus2001/theos-toolchain/releases/download/v1.1/toolchain-linux-x86_64.tar.xz
+          sudo tar -xvf toolchain-linux-x86_64.tar.xz -C $THEOS/toolchain
+          # 确保路径匹配 Theos 的默认搜索路径
+          sudo mv $THEOS/toolchain/linux $THEOS/toolchain/iphone || true
+          rm toolchain-linux-x86_64.tar.xz
 
       - name: Setup SDK
         run: |
           export THEOS=/opt/theos
           sudo rm -rf $THEOS/sdks
-          # 拉取精简版 SDK，只需 iOS 15 左右的即可
           sudo git clone --depth 1 https://github.com/theos/sdks.git $THEOS/sdks
           sudo chmod -R 777 $THEOS
 
       - name: Build Dylib
         run: |
           export THEOS=/opt/theos
-          # 明确指定工具链路径，防止找不到 clang
+          # 强制指定架构和生成
           make package FINALPACKAGE=1
           
       - name: Upload Artifact
