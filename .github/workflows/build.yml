@@ -8,13 +8,39 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Theos and Toolchain
-        # 使用专门的 action 自动配置 Theos、工具链和 SDK
-        uses: kabiroberai/setup-theos-action@v1
+      - name: Setup Theos
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y bash curl git perl make build-essential xz-utils
+          export THEOS=/opt/theos
+          sudo rm -rf $THEOS
+          sudo git clone --recursive https://github.com/theos/theos.git $THEOS
+          sudo chmod -R 777 $THEOS
+          
+      - name: Setup Toolchain
+        run: |
+          export THEOS=/opt/theos
+          sudo mkdir -p $THEOS/toolchain/linux/iphone
+          # 下载官方维护的 Linux x86_64 工具链 (Legacy 路径)
+          curl -L https://github.com/theos/toolchain/raw/master/linux/iphone/clang.tar.gz -o clang.tar.gz
+          # 检查下载的文件是否有效 (如果太小说明是404)
+          FILESIZE=$(stat -c%s "clang.tar.gz")
+          if [ $FILESIZE -lt 1000 ]; then echo "Error: Download failed, file too small."; exit 1; fi
+          sudo tar -xzvf clang.tar.gz -C $THEOS/toolchain/linux/iphone
+          rm clang.tar.gz
+
+      - name: Setup SDK
+        run: |
+          export THEOS=/opt/theos
+          sudo rm -rf $THEOS/sdks
+          sudo git clone --depth 1 https://github.com/theos/sdks.git $THEOS/sdks
+          sudo chmod -R 777 $THEOS
 
       - name: Build Dylib
         run: |
-          # 编译插件
+          export THEOS=/opt/theos
+          # 增加调试信息，看看路径对不对
+          ls -l $THEOS/toolchain/linux/iphone/bin/clang || echo "Clang not found"
           make package FINALPACKAGE=1
           
       - name: Upload Artifact
